@@ -1,0 +1,191 @@
+SPICED Qualification Framework
+AI-powered deal qualification using Situation, Pain, Impact, Critical Event, Decision Process, and Decision Criteria framework
+
+Team Average
+72%
+41 Active Deals
+S
+95%
+Situation
+Strong
+P
+73%
+Pain
+Strong
+I
+61%
+Impact
+Fair
+C
+78%
+Critical Event
+Strong
+E
+68%
+Decision Process
+Fair
+D
+51%
+Decision Criteria
+Fair
+Top High Value
+8
+$620K
+Fully qualified deals
+
+High Risk
+6
+$410K
+Need immediate attention
+
+Weak Qualification
+4
+$180K
+Missing key criteria
+
+No Engagement
+5
+$245K
+Over 7 days idle
+
+Individual Rep SPICED Performance
+Qualification health across all active deals per team member
+
+AR
+Alex Rivera
+68% Average
+7 deals
+Situation
+S
+74%
+Pain
+P
+76%
+Impact
+I
+65%
+Critical Event
+C
+85%
+Decision Process
+E
+59%
+Decision Criteria
+D
+47%
+View Deals
+JL
+Jordan Lee
+70% Average
+6 deals
+Situation
+S
+92%
+Pain
+P
+75%
+Impact
+I
+53%
+Critical Event
+C
+60%
+Decision Process
+E
+73%
+Decision Criteria
+D
+67%
+View Deals
+MS
+Morgan Smith
+75% Average
+5 deals
+Situation
+S
+97%
+Pain
+P
+88%
+Impact
+I
+56%
+Critical Event
+C
+72%
+Decision Process
+E
+84%
+Decision Criteria
+D
+54%
+View Deals
+CJ
+Casey Johnson
+71% Average
+8 deals
+Situation
+S
+96%
+Pain
+P
+84%
+Impact
+I
+55%
+Critical Event
+C
+85%
+Decision Process
+E
+56%
+Decision Criteria
+D
+50%
+View Deals
+TB
+Taylor Brooks
+73% Average
+9 deals
+Situation
+S
+79%
+Pain
+P
+76%
+Impact
+I
+83%
+Critical Event
+C
+65%
+Decision Process
+E
+59%
+Decision Criteria
+D
+74%
+View Deals
+SP
+Sam Parker
+74% Average
+6 deals
+Situation
+S
+91%
+Pain
+P
+81%
+Impact
+I
+58%
+Critical Event
+C
+72%
+Decision Process
+E
+86%
+Decision Criteria
+D
+57%
+View Deals
