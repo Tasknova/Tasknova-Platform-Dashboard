@@ -12,6 +12,7 @@ export function TeamsManagement() {
   const userRole = localStorage.getItem("userRole") || "";
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState("members");
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
 
   // Only admins can access this page
   if (userRole !== "admin") {
@@ -30,6 +31,7 @@ export function TeamsManagement() {
 
   const handleAddSuccess = () => {
     setRefreshTrigger((prev) => prev + 1);
+    setShowAddMemberModal(false);
   };
 
   const downloadCSVTemplate = () => {
@@ -129,7 +131,18 @@ export function TeamsManagement() {
           {/* Tab Content */}
           <div className="space-y-6">
             {activeTab === "members" && (
-              <TeamMembersList orgId={orgId} refreshTrigger={refreshTrigger} />
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Team Members</h3>
+                  <Button
+                    onClick={() => setShowAddMemberModal(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                  >
+                    + Add Team Member
+                  </Button>
+                </div>
+                <TeamMembersList orgId={orgId} refreshTrigger={refreshTrigger} />
+              </div>
             )}
 
             {activeTab === "add" && (
@@ -141,6 +154,16 @@ export function TeamsManagement() {
             )}
           </div>
         </Tabs>
+
+        {/* Add Member Modal */}
+        {showAddMemberModal && (
+          <AddTeamMember
+            orgId={orgId}
+            onSuccess={handleAddSuccess}
+            isModal={true}
+            onClose={() => setShowAddMemberModal(false)}
+          />
+        )}
 
         {/* Help Section */}
         <Card className="mt-8 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200">
