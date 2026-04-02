@@ -113,8 +113,8 @@ export function AddTeamMember({ orgId, onSuccess, isModal = false, onClose }: Ad
   };
 
   return isModal ? (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white border border-gray-200 shadow-lg">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+      <Card className="w-full max-w-3xl bg-white border border-gray-200 shadow-lg my-8">
         {/* Modal Header */}
         <div className="sticky top-0 flex items-center justify-between p-6 border-b border-gray-200 bg-white">
           <h2 className="text-lg font-semibold text-gray-900">Add Team Member</h2>
@@ -129,7 +129,7 @@ export function AddTeamMember({ orgId, onSuccess, isModal = false, onClose }: Ad
         {/* Modal Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* Full Name & Email */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="full_name" className="text-sm font-medium text-gray-700">
                 Full Name *
@@ -164,7 +164,7 @@ export function AddTeamMember({ orgId, onSuccess, isModal = false, onClose }: Ad
           </div>
 
           {/* Phone & DOB */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="phone_number" className="text-sm font-medium text-gray-700">
                 Phone Number
@@ -196,7 +196,7 @@ export function AddTeamMember({ orgId, onSuccess, isModal = false, onClose }: Ad
           </div>
 
           {/* Role & Password */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="role" className="text-sm font-medium text-gray-700">
                 Role *
