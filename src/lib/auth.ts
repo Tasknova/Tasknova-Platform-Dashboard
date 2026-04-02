@@ -31,8 +31,31 @@ export async function hashPassword(password: string): Promise<string> {
   return bcryptjs.hash(password, salt);
 }
 
-// Compare password with hash
+// Helper function for SHA256
+async function sha256Simple(message: string): Promise<string> {
+  const data = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Compare password with hash (handles both bcryptjs and simple formats)
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  // If it's our simple format, verify it
+  if (hash.startsWith("$simple$")) {
+    const parts = hash.split("$");
+    if (parts.length === 4) {
+      const salt = parts[2];
+      const storedHash = parts[3];
+      
+      // Rehash the password with the stored salt
+      const combined = salt + password;
+      const computedHash = await sha256Simple(combined);
+      return computedHash === storedHash;
+    }
+  }
+  
+  // Otherwise use bcryptjs for normal format
   return bcryptjs.compare(password, hash);
 }
 
