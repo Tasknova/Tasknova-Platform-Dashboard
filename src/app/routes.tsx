@@ -15,6 +15,7 @@ import { AdminCallDetails } from "./views/admin/AdminCallDetails";
 import { SystemHealth } from "./views/admin/SystemHealth";
 import { UsageIntelligence } from "./views/admin/UsageIntelligence";
 import { AdminTeam } from "./views/admin/AdminTeam";
+import { TeamsManagement } from "./views/admin/TeamsManagement";
 import { Meetings } from "./views/shared/Meetings";
 import { Calls } from "./views/shared/Calls";
 import { Tasks } from "./views/shared/Tasks";
@@ -153,6 +154,7 @@ export const router = createBrowserRouter([
       { path: "reports", element: <AdminReports /> },
       { path: "analytics", element: <AdminAnalytics /> },
       { path: "team", element: <AdminTeam /> },
+      { path: "teams", element: <TeamsManagement /> },
       { path: "meetings", element: <Meetings /> },
       { path: "calls", element: <Calls /> },
       { path: "tasks", element: <Tasks /> },

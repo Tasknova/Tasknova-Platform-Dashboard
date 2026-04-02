@@ -199,3 +199,278 @@ export async function customLogin(params: LoginParams) {
     };
   }
 }
+
+// Team Member Management Functions
+
+export interface TeamMember {
+  user_id: string;
+  email: string;
+  full_name: string;
+  phone_number?: string;
+  date_of_birth?: string;
+  role: string;
+  invitation_status: string;
+  invited_at?: string;
+  accepted_at?: string;
+  created_at: string;
+}
+
+export interface CreateTeamMemberParams {
+  email: string;
+  full_name: string;
+  phone_number?: string;
+  date_of_birth?: string;
+  role: "manager" | "team_member";
+  password?: string;
+}
+
+// Generate temporary password
+export function generateTemporaryPassword(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
+  let password = "";
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
+
+// Create team member
+export async function createTeamMember(
+  params: CreateTeamMemberParams,
+  orgId: string
+) {
+  try {
+    const { email, full_name, phone_number, date_of_birth, role, password } = params;
+
+    // Check if email already exists in this org
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("user_id, email")
+      .eq("email", email)
+      .eq("org_id", orgId)
+      .single();
+
+    if (existingUser) {
+      return {
+        success: false,
+        error: "User with this email already exists in the organization",
+      };
+    }
+
+    // Hash password
+    const tempPassword = password || generateTemporaryPassword();
+    const passwordHash = await hashPassword(tempPassword);
+
+    // Create user
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .insert({
+        email,
+        full_name,
+        phone_number: phone_number || null,
+        date_of_birth: date_of_birth || null,
+        role,
+        org_id: orgId,
+        password_hash: passwordHash,
+        is_active: true,
+        invitation_status: "REQUEST_SENT",
+        invited_at: new Date().toISOString(),
+      })
+      .select("user_id, email, full_name, role")
+      .single();
+
+    if (userError || !userData) {
+      throw new Error(userError?.message || "Failed to create user");
+    }
+
+    return {
+      success: true,
+      data: {
+        ...userData,
+        temporaryPassword: tempPassword,
+      },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to create team member";
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}
+
+// Get team members
+export async function getTeamMembers(orgId: string) {
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .select(
+        "user_id, email, full_name, phone_number, date_of_birth, role, invitation_status, invited_at, accepted_at, created_at"
+      )
+      .eq("org_id", orgId)
+      .neq("role", "admin")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      data: data as TeamMember[],
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to fetch team members";
+    return {
+      success: false,
+      error: message,
+      data: [],
+    };
+  }
+}
+
+// Send invitation email
+export async function sendTeamInvite(
+  userId: string,
+  email: string,
+  fullName: string,
+  role: string,
+  orgId: string,
+  adminName: string,
+  orgName: string,
+  senderEmail: string,
+  temporaryPassword: string,
+  loginUrl: string
+) {
+  try {
+    const { data, error } = await supabase.functions.invoke("send-team-invite", {
+      body: {
+        userId,
+        email,
+        fullName,
+        role,
+        orgId,
+        adminName,
+        orgName,
+        senderEmail,
+        temporaryPassword,
+        loginUrl,
+      },
+    });
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      message: "Invitation sent successfully",
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to send invitation";
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}
+
+// Resend invitation email
+export async function resendTeamInvite(
+  userId: string,
+  email: string,
+  fullName: string,
+  role: string,
+  orgId: string,
+  adminName: string,
+  orgName: string,
+  senderEmail: string,
+  loginUrl: string
+) {
+  try {
+    // Generate new temporary password
+    const temporaryPassword = generateTemporaryPassword();
+    const passwordHash = await hashPassword(temporaryPassword);
+
+    // Update user's password
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({ password_hash: passwordHash })
+      .eq("user_id", userId);
+
+    if (updateError) throw updateError;
+
+    // Send invitation
+    return await sendTeamInvite(
+      userId,
+      email,
+      fullName,
+      role,
+      orgId,
+      adminName,
+      orgName,
+      senderEmail,
+      temporaryPassword,
+      loginUrl
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to resend invitation";
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}
+
+// Bulk create team members from CSV
+export async function bulkCreateTeamMembers(
+  members: CreateTeamMemberParams[],
+  orgId: string
+) {
+  try {
+    const results = [];
+
+    for (const member of members) {
+      const result = await createTeamMember(member, orgId);
+      results.push({
+        email: member.email,
+        success: result.success,
+        error: result.error,
+        data: result.data,
+      });
+    }
+
+    return {
+      success: true,
+      data: results,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to bulk create team members";
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}
+
+// Accept invitation
+export async function acceptInvitation(userId: string) {
+  try {
+    const { error } = await supabase
+      .from("users")
+      .update({
+        invitation_status: "REQUEST_ACCEPTED",
+        accepted_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      message: "Invitation accepted",
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to accept invitation";
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}
