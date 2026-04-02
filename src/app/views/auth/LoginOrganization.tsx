@@ -1,61 +1,24 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { customLogin } from "../../../lib/auth";
 
-interface Organization {
-  org_id: string;
-  name: string;
-}
-
 export function LoginOrganization() {
   const navigate = useNavigate();
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [selectedOrgId, setSelectedOrgId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingOrgs, setLoadingOrgs] = useState(true);
-
-  useEffect(() => {
-    fetchOrganizations();
-  }, []);
-
-  const fetchOrganizations = async () => {
-    try {
-      const { data, error: fetchError } = await supabase
-        .from("orgs")
-        .select("org_id, name")
-        .order("name");
-
-      if (fetchError) throw fetchError;
-      setOrganizations(data || []);
-
-      // Auto-select first org if only one
-      if (data && data.length === 1) {
-        setSelectedOrgId(data[0].org_id);
-      }
-    } catch (err) {
-      console.error("Failed to fetch organizations:", err);
-    } finally {
-      setLoadingOrgs(false);
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
-    if (!selectedOrgId) {
-      setError("Please select an organization");
-      return;
-    }
 
     if (!email.trim()) {
       setError("Email is required");
@@ -70,9 +33,8 @@ export function LoginOrganization() {
     setLoading(true);
 
     try {
-      // Use custom login function
+      // Use custom login function with email only
       const result = await customLogin({
-        orgId: selectedOrgId,
         email,
         password,
       });
@@ -87,7 +49,7 @@ export function LoginOrganization() {
       const { data: orgData } = await supabase
         .from("orgs")
         .select("name")
-        .eq("org_id", selectedOrgId)
+        .eq("org_id", result.orgId)
         .single();
 
       // Store user data in localStorage
@@ -95,7 +57,7 @@ export function LoginOrganization() {
       localStorage.setItem("userEmail", result.email);
       localStorage.setItem("userName", result.fullName || result.email.split("@")[0]);
       localStorage.setItem("userId", result.userId);
-      localStorage.setItem("userOrganization", selectedOrgId);
+      localStorage.setItem("userOrganization", result.orgId);
       localStorage.setItem("organizationName", orgData?.name || "Organization");
 
       // Redirect to role dashboard
@@ -132,45 +94,11 @@ export function LoginOrganization() {
               <span className="text-white font-bold text-2xl">T</span>
             </div>
             <h1 className="text-2xl font-semibold text-white mb-2">Sign In</h1>
-            <p className="text-gray-400 text-sm">To your organization account</p>
+            <p className="text-gray-400 text-sm">To your account</p>
           </div>
 
           {/* Login Form */}
           <form onSubmit={handleLogin} className="space-y-4">
-            {/* Organization Selector */}
-            <div>
-              <Label htmlFor="organization" className="text-sm font-medium text-gray-300">
-                Organization
-              </Label>
-              {loadingOrgs ? (
-                <div className="mt-2 p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-gray-400 text-sm">
-                  Loading organizations...
-                </div>
-              ) : organizations.length === 0 ? (
-                <div className="mt-2 p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-gray-400 text-sm">
-                  No organizations found.{" "}
-                  <button onClick={() => navigate("/signup")} className="text-blue-400 hover:text-blue-300">
-                    Create one
-                  </button>
-                </div>
-              ) : (
-                <select
-                  id="organization"
-                  value={selectedOrgId}
-                  onChange={(e) => setSelectedOrgId(e.target.value)}
-                  className="mt-2 w-full bg-gray-700/50 border border-gray-600 text-white rounded-lg px-3 py-2"
-                  required
-                >
-                  <option value="">Select an organization</option>
-                  {organizations.map((org) => (
-                    <option key={org.org_id} value={org.org_id}>
-                      {org.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
             <div>
               <Label htmlFor="email" className="text-sm font-medium text-gray-300">
                 Email
@@ -190,15 +118,24 @@ export function LoginOrganization() {
               <Label htmlFor="password" className="text-sm font-medium text-gray-300">
                 Password
               </Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="mt-2 bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-500"
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="mt-2 bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-500"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             {error && (
@@ -214,9 +151,16 @@ export function LoginOrganization() {
             </Button>
           </form>
 
+          {/* Forgot Password Link */}
+          <div className="mt-4 text-center text-sm">
+            <a help href="/forgot-password" className="text-blue-400 hover:text-blue-300 font-medium">
+              Forgot password?
+            </a>
+          </div>
+
           {/* Sign Up Link */}
           <div className="mt-6 text-center text-sm text-gray-400">
-            Don't have an organization?{" "}
+            Don't have an account?{" "}
             <button onClick={() => navigate("/signup")} className="text-blue-400 hover:text-blue-300 font-medium">
               Create one
             </button>

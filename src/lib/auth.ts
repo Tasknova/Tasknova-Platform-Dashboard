@@ -20,9 +20,9 @@ interface SignupParams {
 }
 
 interface LoginParams {
-  orgId: string;
   email: string;
   password: string;
+  orgId?: string; // Optional for backward compatibility
 }
 
 // Hash password with bcrypt
@@ -142,13 +142,12 @@ export async function customSignup(params: SignupParams) {
 // Custom login without Supabase Auth
 export async function customLogin(params: LoginParams) {
   try {
-    const { orgId, email, password } = params;
+    const { email, password } = params;
 
-    // 1. Find user in database
+    // 1. Find user in database by email (one account per email)
     const { data: userData, error: userError } = await supabase
       .from("users")
-      .select("user_id, email, password_hash, role, is_active, full_name")
-      .eq("org_id", orgId)
+      .select("user_id, email, password_hash, role, is_active, full_name, org_id")
       .eq("email", email)
       .single();
 
@@ -183,13 +182,14 @@ export async function customLogin(params: LoginParams) {
       };
     }
 
-    // 3. Return success with user data
+    // 3. Return success with user data (include orgId)
     return {
       success: true,
       userId: userData.user_id,
       email: userData.email,
       fullName: userData.full_name || email.split("@")[0],
       role: userData.role,
+      orgId: userData.org_id,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Login failed";

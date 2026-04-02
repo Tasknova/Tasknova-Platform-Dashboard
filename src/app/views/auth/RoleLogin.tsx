@@ -107,7 +107,6 @@ export function RoleLogin() {
     try {
       // Use custom login function
       const result = await customLogin({
-        orgId: selectedOrgId,
         email,
         password,
       });
@@ -129,7 +128,7 @@ export function RoleLogin() {
       const { data: orgData } = await supabase
         .from("orgs")
         .select("name")
-        .eq("org_id", selectedOrgId)
+        .eq("org_id", result.orgId)
         .single();
 
       // Store user data in localStorage
@@ -137,7 +136,7 @@ export function RoleLogin() {
       localStorage.setItem("userEmail", result.email);
       localStorage.setItem("userName", result.fullName || result.email.split("@")[0]);
       localStorage.setItem("userId", result.userId);
-      localStorage.setItem("userOrganization", selectedOrgId);
+      localStorage.setItem("userOrganization", result.orgId);
       localStorage.setItem("organizationName", orgData?.name || "Organization");
 
       // Redirect to role dashboard
