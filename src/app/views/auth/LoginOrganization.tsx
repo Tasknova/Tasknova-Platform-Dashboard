@@ -6,7 +6,7 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
-import { customLogin, acceptInvitation } from "../../../lib/auth";
+import { customLogin, acceptInvitation, getAppRole } from "../../../lib/auth";
 
 export function LoginOrganization() {
   const navigate = useNavigate();
@@ -66,8 +66,10 @@ export function LoginOrganization() {
         .eq("org_id", result.orgId)
         .single();
 
+      const appRole = getAppRole(result.role);
+
       // Store user data in localStorage
-      localStorage.setItem("userRole", result.role);
+      localStorage.setItem("userRole", appRole);
       localStorage.setItem("userEmail", result.email);
       localStorage.setItem("userName", result.fullName || result.email.split("@")[0]);
       localStorage.setItem("userId", result.userId);
@@ -75,7 +77,7 @@ export function LoginOrganization() {
       localStorage.setItem("organizationName", orgData?.name || "Organization");
 
       // Redirect to role dashboard
-      navigate(`/${result.role}`);
+      navigate(`/${appRole}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An error occurred. Please try again.";
       setError(errorMessage);

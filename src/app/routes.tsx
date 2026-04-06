@@ -56,7 +56,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/login",
-    element: <LoginOrganization />,
+    element: <Landing />,
   },
   {
     path: "/login/:role",

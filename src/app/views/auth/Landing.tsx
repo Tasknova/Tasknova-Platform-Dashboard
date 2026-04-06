@@ -1,22 +1,30 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
-import { customLogin } from "../../../lib/auth";
+import { customLogin, acceptInvitation, getAppRole } from "../../../lib/auth";
 import { ForgotPassword } from "./ForgotPassword";
 
 export function Landing() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  useEffect(() => {
+    const emailParam = searchParams.get("email");
+    if (emailParam) {
+      setEmail(decodeURIComponent(emailParam));
+    }
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +69,10 @@ export function Landing() {
         return;
       }
 
+      if (searchParams.get("email")) {
+        await acceptInvitation(result.userId);
+      }
+
       // Get organization name
       const { data: orgData } = await supabase
         .from("orgs")
@@ -68,8 +80,10 @@ export function Landing() {
         .eq("org_id", userData.org_id)
         .single();
 
+      const appRole = getAppRole(result.role);
+
       // Store user data in localStorage
-      localStorage.setItem("userRole", result.role);
+      localStorage.setItem("userRole", appRole);
       localStorage.setItem("userEmail", result.email);
       localStorage.setItem("userName", result.fullName || result.email.split("@")[0]);
       localStorage.setItem("userId", result.userId);
@@ -77,7 +91,7 @@ export function Landing() {
       localStorage.setItem("organizationName", orgData?.name || "Organization");
 
       // Redirect to role-based dashboard
-      navigate(`/${result.role}`);
+      navigate(`/${appRole}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An error occurred. Please try again.";
       setError(errorMessage);

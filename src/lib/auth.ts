@@ -25,6 +25,13 @@ interface LoginParams {
   orgId?: string; // Optional for backward compatibility
 }
 
+// Map database roles to application dashboard routes.
+export function getAppRole(role: string): "rep" | "manager" | "admin" {
+  if (role === "ae" || role === "team_member" || role === "rep") return "rep";
+  if (role === "manager") return "manager";
+  return "admin";
+}
+
 // Hash password with bcrypt
 export async function hashPassword(password: string): Promise<string> {
   const salt = await bcryptjs.genSalt(10);

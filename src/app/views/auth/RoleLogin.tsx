@@ -6,7 +6,7 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { ArrowLeft, Building2, Users, User, Eye, EyeOff } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
-import { customLogin } from "../../../lib/auth";
+import { customLogin, getAppRole } from "../../../lib/auth";
 
 interface Organization {
   org_id: string;
@@ -117,8 +117,10 @@ export function RoleLogin() {
         return;
       }
 
+      const appRole = getAppRole(result.role);
+
       // Verify user has correct role
-      if (result.role !== role) {
+      if (appRole !== role) {
         setError(`You don't have access to ${config.title} account`);
         setLoading(false);
         return;
@@ -132,7 +134,7 @@ export function RoleLogin() {
         .single();
 
       // Store user data in localStorage
-      localStorage.setItem("userRole", result.role);
+      localStorage.setItem("userRole", appRole);
       localStorage.setItem("userEmail", result.email);
       localStorage.setItem("userName", result.fullName || result.email.split("@")[0]);
       localStorage.setItem("userId", result.userId);
@@ -140,7 +142,7 @@ export function RoleLogin() {
       localStorage.setItem("organizationName", orgData?.name || "Organization");
 
       // Redirect to role dashboard
-      navigate(`/${role}`);
+      navigate(`/${appRole}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An error occurred. Please try again.";
       setError(errorMessage);
