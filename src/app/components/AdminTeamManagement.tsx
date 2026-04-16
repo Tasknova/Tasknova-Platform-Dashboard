@@ -37,12 +37,50 @@ function getUserFacingError(err: unknown, fallback: string): string {
     combined.includes("uq_users_email_per_org") ||
     combined.includes("duplicate key value")
   ) {
+    if (combined.includes("uq_users_phone_per_org") || combined.includes("phone")) {
+      return "This phone number is already added in your organization. Please use a different phone number.";
+    }
     return "This email is already added in your organization. Please use a different email.";
   }
 
   if (message) return message;
   if (err instanceof Error && err.message) return err.message;
   return fallback;
+}
+
+function normalizeEmail(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function normalizePhone(value: string): string {
+  return value.replace(/[^\d+]/g, "").trim();
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function isValidPhone(value: string): boolean {
+  return /^\+?[1-9]\d{9,14}$/.test(value);
+}
+
+function getPasswordValidationError(value: string): string | null {
+  if (!value || value.length < 8) {
+    return "Password must be at least 8 characters";
+  }
+  if (!/[A-Z]/.test(value)) {
+    return "Password must include at least one uppercase letter";
+  }
+  if (!/[a-z]/.test(value)) {
+    return "Password must include at least one lowercase letter";
+  }
+  if (!/\d/.test(value)) {
+    return "Password must include at least one number";
+  }
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(value)) {
+    return "Password must include at least one special character";
+  }
+  return null;
 }
 
 export function AdminTeamManagement() {
@@ -140,16 +178,49 @@ export function AdminTeamManagement() {
       setError("Full name is required");
       return;
     }
-    if (!email.trim()) {
+    if (fullName.trim().length < 2) {
+      setError("Full name must be at least 2 characters");
+      return;
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedPhone = normalizePhone(phoneNumber);
+
+    if (!normalizedEmail) {
       setError("Email is required");
       return;
     }
+    if (!isValidEmail(normalizedEmail)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    if (!normalizedPhone) {
+      setError("Phone number is required");
+      return;
+    }
+    if (!isValidPhone(normalizedPhone)) {
+      setError("Please enter a valid phone number with country code (10-15 digits)");
+      return;
+    }
+
+    if (!dateOfBirth) {
+      setError("Date of birth is required");
+      return;
+    }
+    const dobDate = new Date(dateOfBirth);
+    if (Number.isNaN(dobDate.getTime()) || dobDate > new Date()) {
+      setError("Please enter a valid date of birth");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+    const addPasswordError = getPasswordValidationError(password);
+    if (addPasswordError) {
+      setError(addPasswordError);
       return;
     }
 
@@ -163,15 +234,34 @@ export function AdminTeamManagement() {
     try {
       const tempPassword = password;
 
+      // Fast client-side uniqueness check before insert.
+      const emailExists = teamMembers.some(
+        (member) => normalizeEmail(member.email) === normalizedEmail
+      );
+      if (emailExists) {
+        setError("This email is already added in your organization. Please use a different email.");
+        setSubmitting(false);
+        return;
+      }
+
+      const phoneExists = teamMembers.some(
+        (member) => normalizePhone(member.phone_number || "") === normalizedPhone
+      );
+      if (phoneExists) {
+        setError("This phone number is already added in your organization. Please use a different phone number.");
+        setSubmitting(false);
+        return;
+      }
+
       // Hash the password
       const passwordHash = await hashPassword(tempPassword);
 
       // Create user directly in database with password hash
       const { data: userData, error: userError } = await supabase.from("users").insert({
-        email,
+        email: normalizedEmail,
         full_name: fullName,
-        phone_number: phoneNumber.trim() || null,
-        date_of_birth: dateOfBirth || null,
+        phone_number: normalizedPhone,
+        date_of_birth: dateOfBirth,
         role: selectedRole,
         org_id: organizationId,
         is_active: true,
@@ -213,7 +303,7 @@ export function AdminTeamManagement() {
 
       const inviteResult = await sendTeamInvite(
         userData.user_id,
-        email,
+        normalizedEmail,
         fullName,
         selectedRole === "ae" ? "team_member" : selectedRole,
         organizationId,
@@ -236,7 +326,7 @@ export function AdminTeamManagement() {
           }`
         );
       } else {
-        setSuccess(`Invitation sent to ${email}`);
+        setSuccess(`Invitation sent to ${normalizedEmail}`);
       }
 
       // Store credentials temporarily for the new member BEFORE resetting form
@@ -317,8 +407,39 @@ export function AdminTeamManagement() {
       setError("Full name is required");
       return;
     }
-    if (!email.trim()) {
+    if (fullName.trim().length < 2) {
+      setError("Full name must be at least 2 characters");
+      return;
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedPhone = normalizePhone(phoneNumber);
+
+    if (!normalizedEmail) {
       setError("Email is required");
+      return;
+    }
+    if (!isValidEmail(normalizedEmail)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    if (!normalizedPhone) {
+      setError("Phone number is required");
+      return;
+    }
+    if (!isValidPhone(normalizedPhone)) {
+      setError("Please enter a valid phone number with country code (10-15 digits)");
+      return;
+    }
+
+    if (!dateOfBirth) {
+      setError("Date of birth is required");
+      return;
+    }
+    const dobDate = new Date(dateOfBirth);
+    if (Number.isNaN(dobDate.getTime()) || dobDate > new Date()) {
+      setError("Please enter a valid date of birth");
       return;
     }
 
@@ -330,11 +451,33 @@ export function AdminTeamManagement() {
     setSubmitting(true);
 
     try {
+      const duplicateEmail = teamMembers.some(
+        (member) =>
+          member.user_id !== editingMember.user_id &&
+          normalizeEmail(member.email) === normalizedEmail
+      );
+      if (duplicateEmail) {
+        setError("This email is already added in your organization. Please use a different email.");
+        setSubmitting(false);
+        return;
+      }
+
+      const duplicatePhone = teamMembers.some(
+        (member) =>
+          member.user_id !== editingMember.user_id &&
+          normalizePhone(member.phone_number || "") === normalizedPhone
+      );
+      if (duplicatePhone) {
+        setError("This phone number is already added in your organization. Please use a different phone number.");
+        setSubmitting(false);
+        return;
+      }
+
       const updateData: any = {
         full_name: fullName,
-        email,
-        phone_number: phoneNumber.trim() || null,
-        date_of_birth: dateOfBirth || null,
+        email: normalizedEmail,
+        phone_number: normalizedPhone,
+        date_of_birth: dateOfBirth,
         role: selectedRole,
       };
 
@@ -345,8 +488,9 @@ export function AdminTeamManagement() {
           setSubmitting(false);
           return;
         }
-        if (password.length < 6) {
-          setError("Password must be at least 6 characters");
+        const editPasswordError = getPasswordValidationError(password);
+        if (editPasswordError) {
+          setError(editPasswordError);
           setSubmitting(false);
           return;
         }
@@ -748,7 +892,7 @@ export function AdminTeamManagement() {
             <p className="text-gray-600 mb-4">No {activeTab === "ae" ? "representatives" : "managers"} yet.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 max-w-md">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {teamMembers
               .filter((member) => member.role === activeTab)
               .map((member) => (

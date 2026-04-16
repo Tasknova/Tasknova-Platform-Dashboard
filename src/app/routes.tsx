@@ -28,11 +28,16 @@ import { Trackers } from "./views/shared/Trackers";
 import { Revenue } from "./views/shared/Revenue";
 import { Settings } from "./views/shared/Settings";
 import { AI } from "./views/shared/AI";
-import MeetingDetail from "./views/meetings/MeetingDetail";
+import MeetingDetailsPage from "./views/meetings/MeetingDetailsPage";
 import { CustomerDetail } from "./views/shared/CustomerDetail";
 import { LiveCall } from "./views/shared/LiveCall";
 import { Activities } from "./views/shared/Activities";
 import { ComposeEmail } from "./views/shared/ComposeEmail";
+import { Emails } from "./views/shared/Emails";
+import { CRM } from "./views/shared/CRM";
+import { EmailCallback } from "./views/shared/EmailCallback";
+import { CalendarCallback } from "./views/shared/CalendarCallback";
+import { HubspotCallback } from "./views/shared/HubspotCallback";
 import { Landing } from "./views/auth/Landing";
 import { RoleLogin } from "./views/auth/RoleLogin";
 import { RoleSignup } from "./views/auth/RoleSignup";
@@ -75,6 +80,18 @@ export const router = createBrowserRouter([
     element: <ResetPassword />,
   },
   {
+    path: "/calendar/callback",
+    element: <CalendarCallback />,
+  },
+  {
+    path: "/email-callback",
+    element: <EmailCallback />,
+  },
+  {
+    path: "/hubspot/callback",
+    element: <HubspotCallback />,
+  },
+  {
     path: "/rep",
     element: <Root />,
     errorElement: <ErrorBoundary />,
@@ -99,9 +116,11 @@ export const router = createBrowserRouter([
       { path: "revenue", element: <Revenue /> },
       { path: "settings", element: <Settings /> },
       { path: "ai", element: <AI /> },
+      { path: "emails", element: <Emails /> },
+      { path: "crm", element: <CRM /> },
       { path: "activities", element: <Activities /> },
       { path: "compose-email", element: <ComposeEmail /> },
-      { path: "meeting/:id", element: <MeetingDetail /> },
+      { path: "meeting/:id", element: <MeetingDetailsPage /> },
       { path: "customer/:id", element: <CustomerDetail /> },
       { path: "call/:id", element: <LiveCall /> },
       { path: "activity/:id", element: <RepCallDetails /> },
@@ -135,9 +154,11 @@ export const router = createBrowserRouter([
       { path: "revenue", element: <Revenue /> },
       { path: "settings", element: <Settings /> },
       { path: "ai", element: <AI /> },
+      { path: "emails", element: <Emails /> },
+      { path: "crm", element: <CRM /> },
       { path: "activities", element: <Activities /> },
       { path: "compose-email", element: <ComposeEmail /> },
-      { path: "meeting/:id", element: <MeetingDetail /> },
+      { path: "meeting/:id", element: <MeetingDetailsPage /> },
       { path: "customer/:id", element: <CustomerDetail /> },
       { path: "call/:id", element: <LiveCall /> },
       { path: "activity/:id", element: <ManagerCallDetails /> },
@@ -171,9 +192,11 @@ export const router = createBrowserRouter([
       { path: "revenue", element: <Revenue /> },
       { path: "settings", element: <Settings /> },
       { path: "ai", element: <AI /> },
+      { path: "emails", element: <Emails /> },
+      { path: "crm", element: <CRM /> },
       { path: "activities", element: <Activities /> },
       { path: "compose-email", element: <ComposeEmail /> },
-      { path: "meeting/:id", element: <MeetingDetail /> },
+      { path: "meeting/:id", element: <MeetingDetailsPage /> },
       { path: "customer/:id", element: <CustomerDetail /> },
       { path: "call/:id", element: <LiveCall /> },
       { path: "activity/:id", element: <AdminCallDetails /> },

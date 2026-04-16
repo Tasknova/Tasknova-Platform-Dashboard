@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router";
 import { 
   ChevronRight, 
   CheckCircle2, 
   Circle, 
   Calendar, 
+  Mail,
   Database, 
   FileText, 
   Target,
@@ -15,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
+import { checkGmailConnection } from "../../lib/gmailApi";
 
 interface ChecklistItem {
   id: string;
@@ -32,23 +35,85 @@ interface SetupChecklistProps {
 export function SetupChecklist({ onNavigate }: SetupChecklistProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isCalendarConnected, setIsCalendarConnected] = useState(
+    localStorage.getItem("calendarConnected") === "true"
+  );
+  const [isGmailConnected, setIsGmailConnected] = useState(
+    localStorage.getItem("gmailConnected") === "true"
+  );
+  const [isCrmConnected, setIsCrmConnected] = useState(
+    localStorage.getItem("crmConnected") === "true"
+  );
+  const location = useLocation();
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadIntegrationStatus = async () => {
+      const calendarConnected = localStorage.getItem("calendarConnected") === "true";
+      if (!ignore) {
+        setIsCalendarConnected(calendarConnected);
+      }
+
+      try {
+        const gmailConnected = await checkGmailConnection();
+        localStorage.setItem("gmailConnected", gmailConnected ? "true" : "false");
+        if (!ignore) {
+          setIsGmailConnected(gmailConnected);
+        }
+      } catch {
+        if (!ignore) {
+          setIsGmailConnected(localStorage.getItem("gmailConnected") === "true");
+        }
+      }
+
+      if (!ignore) {
+        setIsCrmConnected(localStorage.getItem("crmConnected") === "true");
+      }
+    };
+
+    loadIntegrationStatus();
+
+    const handleGmailStatusChange = () => {
+      void loadIntegrationStatus();
+    };
+    const handleCrmStatusChange = () => {
+      void loadIntegrationStatus();
+    };
+    window.addEventListener("gmail-status-changed", handleGmailStatusChange);
+    window.addEventListener("crm-status-changed", handleCrmStatusChange);
+
+    return () => {
+      ignore = true;
+      window.removeEventListener("gmail-status-changed", handleGmailStatusChange);
+      window.removeEventListener("crm-status-changed", handleCrmStatusChange);
+    };
+  }, [location.pathname]);
 
   const checklist: ChecklistItem[] = [
     {
       id: "calendar",
       label: "Connect Calendar",
-      completed: false,
+      completed: isCalendarConnected,
       icon: Calendar,
       path: "/settings/integrations",
       description: "Sync your meetings",
     },
     {
+      id: "email",
+      label: "Connect Email",
+      completed: isGmailConnected,
+      icon: Mail,
+      path: "/emails",
+      description: "Sync Gmail inbox",
+    },
+    {
       id: "crm",
       label: "Connect CRM",
-      completed: false,
+      completed: isCrmConnected,
       icon: Database,
-      path: "/settings/integrations",
-      description: "HubSpot or Salesforce",
+      path: "/crm",
+      description: "Salesforce, Zoho, or HubSpot",
     },
     {
       id: "templates",

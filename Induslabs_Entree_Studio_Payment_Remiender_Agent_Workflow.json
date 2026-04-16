@@ -1,0 +1,793 @@
+{
+  "name": "Induslabs-Entree-Studio-Payment-Remiender-Agent-Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1060,
+        -315
+      ],
+      "id": "bed92708-936a-4959-93dc-726be9572c4e",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.induslabs.io/api/developer/agents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "api_key",
+              "value": "l2u-bufJ5sDMp7h9rli7aH77sA2BKuMfbRT7Ny7FUJ0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -180,
+        -540
+      ],
+      "id": "c4cde9fb-af2c-4f48-b0b4-2e256007ffa6",
+      "name": "induslandapi-get-agents"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://developer.induslabs.io/api/login",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Basic bW1hbmR2aXlhOTNAZ21haWwuY29tOm5NRllQZkIzOTZTelhzUUA="
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "mmandviya93@gmail.com"
+            },
+            {
+              "name": "password",
+              "value": "nMFYPfB396SzXsQ@"
+            },
+            {
+              "name": "Content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        40,
+        -540
+      ],
+      "id": "5274a446-51da-4714-802b-a2612c4b5e49",
+      "name": "Indusland-Developer-Login"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://developer.induslabs.io/api/calls/click2call",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.data.access_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"customer_number\": \"{{ $('Google Sheets').item.json.cust_no }}\",\n  \"agent_number\": \"{{ $('induslandapi-get-agents').item.json.data.agents[0].agent_id }}\",\n  \"transcript\": true,\n  \"transcript_language\": \"en\",\n  \"agent_config\": {\n    \"client_name\": \"{{ $('Loop Over Items').item.json.cust_name }}\",\n    \"due_amount\": {{ $('Loop Over Items').item.json.due_amount }},\n    \"additional_details\": \"{{ $('Loop Over Items').item.json.additional_details }}\"\n  }\n}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        -540
+      ],
+      "id": "0ece8e89-f46d-4dd8-8ad2-450b87d3d7e6",
+      "name": "Indusland-Click-to-Call"
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        700,
+        -340
+      ],
+      "id": "a937cfec-b4b3-43b8-9a9c-d2c9c917183c",
+      "name": "2 Sec Wait",
+      "webhookId": "c3bfacba-dcfb-43d3-9608-71c11532f11d"
+    },
+    {
+      "parameters": {
+        "url": "=https://developer.induslabs.io/api/calls/{{ $('Indusland-Click-to-Call').item.json.data.call_id }}/transcript ",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Indusland-Developer-Login').item.json.data.access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        -365
+      ],
+      "id": "07b51a74-e2a0-41e9-86b0-2d2c31813120",
+      "name": "Indusland-Get-Transcript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e8a8e06e-945d-487b-9dbb-f963c9a48c2e",
+              "leftValue": "={{ $json.data.transcript_status }}",
+              "rightValue": "ready",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1140,
+        -340
+      ],
+      "id": "d9b1576f-0438-4ebb-aec2-a067dc0c0069",
+      "name": "If-Transcript-status-ready"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1tQLQCK2TEzg0LNpC6p4IZjHJDHTpRJssPCAw0LNF1KM",
+          "mode": "list",
+          "cachedResultName": "indusland_dummy_sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1tQLQCK2TEzg0LNpC6p4IZjHJDHTpRJssPCAw0LNF1KM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1tQLQCK2TEzg0LNpC6p4IZjHJDHTpRJssPCAw0LNF1KM/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "call_status",
+              "lookupValue": "not_called"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        -840,
+        -315
+      ],
+      "id": "4aecbc2e-96c1-4be9-ae74-fff8c03e44ee",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jtRkHJMakNAIZXcy",
+          "name": "Google Sheets Account Tasknova"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -620,
+        -315
+      ],
+      "id": "bf9332a6-538f-4f4e-8aba-337b216d164d",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1tQLQCK2TEzg0LNpC6p4IZjHJDHTpRJssPCAw0LNF1KM",
+          "mode": "list",
+          "cachedResultName": "indusland_dummy_sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1tQLQCK2TEzg0LNpC6p4IZjHJDHTpRJssPCAw0LNF1KM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1tQLQCK2TEzg0LNpC6p4IZjHJDHTpRJssPCAw0LNF1KM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $('Google Sheets').item.json.ID }}",
+            "recording": "={{ $('Indusland-Get-Transcript').item.json.data.recording }}",
+            "summary": "={{ $('Indusland-Get-Transcript').item.json.data.transcript.summary }}",
+            "call_id": "={{ $('Indusland-Get-Transcript').item.json.data.call_id }}",
+            "transcript": "={{ $('Indusland-Get-Transcript').item.json.data.transcript.history }}",
+            "call_status": "={{ $('Indusland-Click-to-Call').item.json.data.status }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cust_name",
+              "displayName": "cust_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cust_no",
+              "displayName": "cust_no",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "due_amount",
+              "displayName": "due_amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "additional_details",
+              "displayName": "additional_details",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "call_id",
+              "displayName": "call_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "call_status",
+              "displayName": "call_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "transcript",
+              "displayName": "transcript",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recording",
+              "displayName": "recording",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "call-outcome",
+              "displayName": "call-outcome",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        1360,
+        -215
+      ],
+      "id": "34fbf5be-d2d0-4897-bdb9-49e637208bd1",
+      "name": "Google Sheets1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jtRkHJMakNAIZXcy",
+          "name": "Google Sheets Account Tasknova"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -400,
+        -540
+      ],
+      "id": "46c9975c-3615-406a-bf27-cb876a0bcc62",
+      "name": "Wait",
+      "webhookId": "fd5ecdea-0ffb-4d95-ba5a-8c2bc14a21de"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0c3f8e29-fa27-454c-b048-e2fe01a59842",
+              "leftValue": "={{ $json.data.status }}",
+              "rightValue": "failed",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        -540
+      ],
+      "id": "37ce29f5-773e-4f4a-ae42-69662a211c6e",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1tQLQCK2TEzg0LNpC6p4IZjHJDHTpRJssPCAw0LNF1KM",
+          "mode": "list",
+          "cachedResultName": "indusland_dummy_sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1tQLQCK2TEzg0LNpC6p4IZjHJDHTpRJssPCAw0LNF1KM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1tQLQCK2TEzg0LNpC6p4IZjHJDHTpRJssPCAw0LNF1KM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $('Google Sheets').item.json.ID }}",
+            "recording": "=",
+            "summary": "=",
+            "call_id": "={{ $json.data.call_id }}",
+            "transcript": "=",
+            "call_status": "={{ $('Indusland-Click-to-Call').item.json.data.status }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cust_name",
+              "displayName": "cust_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cust_no",
+              "displayName": "cust_no",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "due_amount",
+              "displayName": "due_amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "additional_details",
+              "displayName": "additional_details",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "call_id",
+              "displayName": "call_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "call_status",
+              "displayName": "call_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "transcript",
+              "displayName": "transcript",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recording",
+              "displayName": "recording",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "call-outcome",
+              "displayName": "call-outcome",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        780,
+        -560
+      ],
+      "id": "74542668-dc9f-445d-b190-78a6c6920dc7",
+      "name": "Google Sheets2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jtRkHJMakNAIZXcy",
+          "name": "Google Sheets Account Tasknova"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Indusland-Developer-Login": {
+      "main": [
+        [
+          {
+            "node": "Indusland-Click-to-Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Indusland-Click-to-Call": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2 Sec Wait": {
+      "main": [
+        [
+          {
+            "node": "Indusland-Get-Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Indusland-Get-Transcript": {
+      "main": [
+        [
+          {
+            "node": "If-Transcript-status-ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If-Transcript-status-ready": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "2 Sec Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "induslandapi-get-agents": {
+      "main": [
+        [
+          {
+            "node": "Indusland-Developer-Login",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "induslandapi-get-agents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "2 Sec Wait",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google Sheets2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b04baa77-563c-4158-87da-23961c25dc71",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a8ab3f02c990a557b26109eb98c0e09c005bd259e9c19b944b90670f8bd428b9"
+  },
+  "id": "rDnnQo3crxZATnvr",
+  "tags": []
+}

@@ -30,8 +30,7 @@ import {
   UserCircle2,
   Shield,
   Briefcase,
-  RefreshCw,
-} from "lucide-react";
+  RefreshCw,  Mail,} from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
@@ -54,6 +53,8 @@ const navItems = [
   { name: "Coaching", icon: GraduationCap, path: "/coaching", roles: ["manager", "admin"] },
   { name: "Insights", icon: BarChart3, path: "/insights", roles: ["rep", "manager", "admin"] },
   { name: "Revenue", icon: TrendingUp, path: "/revenue", roles: ["manager", "admin"] },
+  { name: "Emails", icon: Mail, path: "/emails", roles: ["rep", "manager", "admin"] },
+  { name: "CRM", icon: Briefcase, path: "/crm", roles: ["rep", "manager", "admin"] },
   { name: "Automation", icon: Zap, path: "/automation", roles: ["admin"] },
   { name: "Team", icon: Users, path: "/team", roles: ["admin"] },
   { name: "Settings", icon: Settings, path: "/settings", roles: ["rep", "manager", "admin"] },

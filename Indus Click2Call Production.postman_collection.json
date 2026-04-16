@@ -1,0 +1,311 @@
+{
+  "info": {
+    "_postman_id": "32d67b43-97ee-4fbb-b3f6-579ee1ecd768",
+    "name": "Indus Click2Call Production",
+    "description": "Verified on 2026-03-07: login, click2call, transcript work on developer.induslabs.io. call-log currently returns 404 on production.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "47375456",
+    "_collection_link": "https://go.postman.co/collection/47375456-32d67b43-97ee-4fbb-b3f6-579ee1ecd768?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "1) Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const r = pm.response.json();",
+              "if (r?.data?.access_token) pm.collectionVariables.set('access_token', r.data.access_token);"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "password",
+              "value": "example",
+              "type": "string"
+            },
+            {
+              "key": "username",
+              "value": "exampe@gmail.com",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"example@gmail.com\",\n  \"password\": \"example\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2) Click2Call",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const r = pm.response.json();",
+              "if (r?.data?.call_id) pm.collectionVariables.set('call_id', r.data.call_id);"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customer_number\": \"XXXXXXXXXX\",\n  \"agent_number\": \"XXXXXXXXXX\",\n  \"transcript\": true,\n  \"transcript_language\": \"en\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/calls/click2call",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "calls",
+            "click2call"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "2) Click2Call",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OGEwMWU1NTE3OTU0NzA4YTZhOWQwNWEiLCJzZXNzaW9uX2lkIjoiU0VTXzQ0ZGMwN2RlMjgyZDQ5NDNiYTNlZWU3MiIsImV4cCI6MTc3MjkyNjE2NSwicmVmcmVzaCI6ZmFsc2V9.9u7rYGBASvJQZLiAMdEqvNxDS4X5u5B3FmOLOTYQ_m2fMUI9XfEl6v3elIkRfKmOMzzkKAMQP_HTrzOeFZrg3g"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_number\": \"XXXXX61432\",\n  \"agent_number\": \"XXXXX74720\",\n  \"transcript\": true,\n  \"transcript_language\": \"en\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/calls/click2call",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "calls",
+                "click2call"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "Text",
+          "header": [
+            {
+              "key": "Server",
+              "value": "nginx"
+            },
+            {
+              "key": "Date",
+              "value": "Sat, 07 Mar 2026 22:46:13 GMT"
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Content-Length",
+              "value": "177"
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n    \"status_code\": 200,\n    \"message\": \"Click2Call request created\",\n    \"error\": null,\n    \"data\": {\n        \"call_id\": \"call_3dbec774a9d24083\",\n        \"status\": \"queued\",\n        \"transcript\": true,\n        \"transcript_language\": \"en\"\n    }\n}"
+        }
+      ]
+    },
+    {
+      "name": "3) Transcript by Call ID",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/calls/{{call_id}}/transcript",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "calls",
+            "{{call_id}}",
+            "transcript"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Pending",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/calls/call_99b2f7fbdca840fb/transcript",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "calls",
+                "call_99b2f7fbdca840fb",
+                "transcript"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "Text",
+          "header": [
+            {
+              "key": "Server",
+              "value": "nginx"
+            },
+            {
+              "key": "Date",
+              "value": "Sat, 07 Mar 2026 23:00:51 GMT"
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Content-Length",
+              "value": "261"
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n    \"status_code\": 200,\n    \"message\": \"Transcript not available yet\",\n    \"error\": null,\n    \"data\": {\n        \"call_id\": \"call_99b2f7fbdca840fb\",\n        \"transcript_status\": \"pending\",\n        \"customer_number\": \"xxxxx61432\",\n        \"agent_number\": \"xxxxx74720\",\n        \"duration\": null,\n        \"recording\": \"pending\",\n        \"transcript\": null\n    }\n}"
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://developer.induslabs.io"
+    },
+    {
+      "key": "email",
+      "value": "example@example.com"
+    },
+    {
+      "key": "password",
+      "value": "example_password"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "customer_number",
+      "value": "eg"
+    },
+    {
+      "key": "agent_number",
+      "value": "eg"
+    },
+    {
+      "key": "call_id",
+      "value": ""
+    },
+    {
+      "key": "greeter_auth_user",
+      "value": "Indus3"
+    },
+    {
+      "key": "greeter_auth_pass",
+      "value": "Indus12345"
+    }
+  ]
+}

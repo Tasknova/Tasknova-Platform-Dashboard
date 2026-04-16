@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Settings as SettingsIcon,
   User,
@@ -37,13 +37,37 @@ import { Switch } from "../../components/ui/switch";
 import { Badge } from "../../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Textarea } from "../../components/ui/textarea";
+import { supabase } from "../../../lib/supabase";
+import {
+  addCallNumber,
+  assignCallNumber,
+  getCallNumbers,
+  ManagedCallNumber,
+  verifyCallNumber,
+} from "../../../lib/callNumbers";
+
+type TeamMember = {
+  user_id: string;
+  full_name: string | null;
+  email: string | null;
+  role: string | null;
+};
 
 export function Settings() {
   const [activeSection, setActiveSection] = useState("general");
   const userRole = localStorage.getItem("userRole") || "rep";
+  const organizationId = localStorage.getItem("userOrganization") || "";
+  const currentUserId = localStorage.getItem("userId") || "";
+  const currentUserName = localStorage.getItem("userName") || "Admin";
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [managedNumbers, setManagedNumbers] = useState<ManagedCallNumber[]>([]);
+  const [newNumberInput, setNewNumberInput] = useState("");
+  const [numbersError, setNumbersError] = useState<string | null>(null);
+  const [numbersSuccess, setNumbersSuccess] = useState<string | null>(null);
 
   const organizationSettings = [
     { id: "general", label: "General", icon: Building2 },
+    { id: "call-numbers", label: "Call Numbers", icon: Smartphone, roles: ["admin"] },
     { id: "recording-policies", label: "Recording Policies", icon: Mic },
     { id: "privacy-policies", label: "Privacy Policies", icon: Shield },
     { id: "consent-policies", label: "Consent Policies", icon: FileText },
@@ -67,6 +91,83 @@ export function Settings() {
   const filteredSettings = organizationSettings.filter(item => 
     !item.roles || item.roles.includes(userRole)
   );
+
+  const userNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const member of teamMembers) {
+      const fallback = member.email || "Unknown";
+      map.set(member.user_id, member.full_name || fallback);
+    }
+
+    if (currentUserId && !map.has(currentUserId)) {
+      map.set(currentUserId, currentUserName);
+    }
+
+    return map;
+  }, [teamMembers, currentUserId, currentUserName]);
+
+  const yourNumbers = managedNumbers.filter((item) => item.assignedToUserId === currentUserId);
+  const teamNumbers = managedNumbers.filter((item) => item.assignedToUserId !== currentUserId);
+
+  useEffect(() => {
+    if (!organizationId) return;
+
+    const loadMembers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("users")
+          .select("user_id, full_name, email, role")
+          .eq("org_id", organizationId)
+          .order("created_at", { ascending: true });
+
+        if (error) throw error;
+        setTeamMembers((data || []) as TeamMember[]);
+      } catch (error) {
+        console.error("Failed to load team members for call number assignment:", error);
+      }
+    };
+
+    void loadMembers();
+    setManagedNumbers(getCallNumbers(organizationId));
+  }, [organizationId]);
+
+  const handleAddNumber = () => {
+    if (!organizationId) {
+      setNumbersError("Organization context is missing.");
+      return;
+    }
+
+    const result = addCallNumber(organizationId, newNumberInput, currentUserId || "admin");
+
+    if (!result.ok) {
+      setNumbersError(result.error || "Failed to add number.");
+      setNumbersSuccess(null);
+      return;
+    }
+
+    setManagedNumbers(getCallNumbers(organizationId));
+    setNewNumberInput("");
+    setNumbersError(null);
+    setNumbersSuccess("Number added. Click Verify to complete OTP verification simulation.");
+  };
+
+  const handleVerifyNumber = (numberId: string) => {
+    if (!organizationId) return;
+    const updated = verifyCallNumber(organizationId, numberId);
+    setManagedNumbers(updated);
+    setNumbersError(null);
+    setNumbersSuccess("Number verified successfully.");
+  };
+
+  const handleAssignNumber = (numberId: string, assignedUserId: string) => {
+    if (!organizationId) return;
+
+    const assignedName = userNameById.get(assignedUserId) || "Unknown";
+    const updated = assignCallNumber(organizationId, numberId, assignedUserId, assignedName);
+    setManagedNumbers(updated);
+    setNumbersError(null);
+    setNumbersSuccess("Number assignment updated.");
+  };
 
   return (
     <div className="flex h-screen bg-white">
@@ -208,6 +309,127 @@ export function Settings() {
                     <Button variant="outline" size="sm" className="h-8 text-xs border-red-300 text-red-700 hover:bg-red-100">
                       Delete Organization
                     </Button>
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {/* Recording Policies */}
+            {activeSection === "call-numbers" && userRole === "admin" && (
+              <div className="space-y-6">
+                <section className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-4">Add Number</h2>
+                  <p className="text-xs text-gray-600 mb-4">
+                    Add outbound numbers, verify them, and assign each number to exactly one team member.
+                  </p>
+
+                  <div className="flex items-center gap-3 max-w-2xl">
+                    <Input
+                      value={newNumberInput}
+                      onChange={(e) => setNewNumberInput(e.target.value)}
+                      placeholder="+919999999999"
+                      className="h-9"
+                    />
+                    <Button className="bg-blue-600 hover:bg-blue-700 h-9" onClick={handleAddNumber}>
+                      Add Number
+                    </Button>
+                  </div>
+
+                  {numbersError && (
+                    <p className="text-xs text-red-600 mt-3">{numbersError}</p>
+                  )}
+                  {numbersSuccess && (
+                    <p className="text-xs text-green-700 mt-3">{numbersSuccess}</p>
+                  )}
+
+                  <div className="mt-6 space-y-3">
+                    {managedNumbers.length === 0 ? (
+                      <p className="text-sm text-gray-600">No numbers added yet.</p>
+                    ) : (
+                      managedNumbers.map((item) => (
+                        <div
+                          key={item.id}
+                          className="border border-gray-200 rounded-lg p-4 flex flex-wrap items-center justify-between gap-3"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{item.phoneNumber}</p>
+                            <p className="text-xs text-gray-600">
+                              Assigned to: {item.assignedToName || "Unassigned"}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant={item.verified ? "default" : "outline"}
+                              className={`h-8 text-xs ${item.verified ? "bg-green-600 hover:bg-green-700" : ""}`}
+                              onClick={() => handleVerifyNumber(item.id)}
+                              disabled={item.verified}
+                            >
+                              {item.verified ? "Verified" : "Verify"}
+                            </Button>
+
+                            <Select
+                              value={item.assignedToUserId || "unassigned"}
+                              onValueChange={(value) => {
+                                if (value === "unassigned") return;
+                                handleAssignNumber(item.id, value);
+                              }}
+                            >
+                              <SelectTrigger className="w-52 h-8 text-xs">
+                                <SelectValue placeholder="Assign to member" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unassigned">Unassigned</SelectItem>
+                                {teamMembers.map((member) => (
+                                  <SelectItem key={member.user_id} value={member.user_id}>
+                                    {member.full_name || member.email || member.user_id}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </section>
+
+                <section className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-3">Your Numbers</h2>
+                  <div className="space-y-2">
+                    {yourNumbers.length === 0 ? (
+                      <p className="text-sm text-gray-600">No numbers are assigned to you yet.</p>
+                    ) : (
+                      yourNumbers.map((item) => (
+                        <div key={item.id} className="p-3 border border-gray-200 rounded-lg flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-900">{item.phoneNumber}</span>
+                          <Badge className={item.verified ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"}>
+                            {item.verified ? "Verified" : "Pending verification"}
+                          </Badge>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </section>
+
+                <section className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-3">Team Numbers</h2>
+                  <div className="space-y-2">
+                    {teamNumbers.length === 0 ? (
+                      <p className="text-sm text-gray-600">No team numbers available.</p>
+                    ) : (
+                      teamNumbers.map((item) => (
+                        <div key={item.id} className="p-3 border border-gray-200 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-900">{item.phoneNumber}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {item.assignedToName || "Unassigned"}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </section>
               </div>
@@ -385,6 +607,9 @@ export function Settings() {
                   <h2 className="text-sm font-semibold text-gray-900 mb-4">Connected Integrations</h2>
                   <div className="grid grid-cols-2 gap-4">
                     {[
+                      { name: "Gmail", status: "disconnected", color: "#EA4335", logo: (
+                        <Mail className="w-6 h-6" />
+                      ), action: () => window.location.href = "/rep/emails" },
                       { name: "Salesforce", status: "connected", color: "#00A1E0", logo: (
                         <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
                           <path d="M10.006 5.413a4.905 4.905 0 014.101-2.204 4.91 4.91 0 014.385 2.72 3.814 3.814 0 012.117-.637c2.127 0 3.85 1.73 3.85 3.866a3.867 3.867 0 01-.816 2.365 3.726 3.726 0 01.502 1.875A3.867 3.867 0 0120.278 17.3a4.77 4.77 0 01-3.934 2.063 4.765 4.765 0 01-3.394-1.425 4.905 4.905 0 01-4.101 2.205 4.91 4.91 0 01-4.385-2.72 3.814 3.814 0 01-2.117.637A3.857 3.857 0 01-.5 14.193a3.867 3.867 0 01.816-2.365 3.726 3.726 0 01-.502-1.875A3.867 3.867 0 013.681 6.086a4.77 4.77 0 013.934-2.063c.834 0 1.635.22 2.391.637v.753z"/>
@@ -443,6 +668,7 @@ export function Settings() {
                           variant={integration.status === "connected" ? "outline" : "default"}
                           size="sm"
                           className="h-7 text-xs"
+                          onClick={integration.action ? integration.action : undefined}
                         >
                           {integration.status === "connected" ? "Configure" : "Connect"}
                         </Button>
@@ -912,7 +1138,7 @@ export function Settings() {
             )}
 
             {/* Placeholder for other sections - remove this now since we've handled all */}
-            {!["general", "recording-policies", "privacy-policies", "notification-policies", "scorecards", "integrations", "teams", "members", "billing", "templates", "answer-cards", "smart-topics", "prompt-library", "automations", "scheduler", "developer", "consent-policies", "purposes-outcomes"].includes(activeSection) && (
+            {!["general", "call-numbers", "recording-policies", "privacy-policies", "notification-policies", "scorecards", "integrations", "teams", "members", "billing", "templates", "answer-cards", "smart-topics", "prompt-library", "automations", "scheduler", "developer", "consent-policies", "purposes-outcomes"].includes(activeSection) && (
               <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
                 <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
                   {(() => {
