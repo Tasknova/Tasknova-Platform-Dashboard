@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
+import { HubspotObjectType, HubspotRecord, HubspotStatusResponse, HubspotRecordsResponse } from "./hubspotApi";
 
-type HubspotAction =
+type ZohoAction =
   | "get_auth_url"
   | "exchange_code"
   | "status"
@@ -8,30 +9,10 @@ type HubspotAction =
   | "sync_now"
   | "list_records";
 
-export type HubspotObjectType = "contacts" | "companies" | "deals";
-
-export type HubspotRecord = {
-  id: string | null;
-  createdAt: string | null;
-  updatedAt: string | null;
-  archived: boolean;
-  properties: Record<string, unknown>;
-};
-
-export type HubspotStatusResponse = {
-  connected: boolean;
-  provider: "hubspot";
-  connectedAt?: string | null;
-  lastSyncedAt?: string | null;
-  portalId?: number | null;
-  scopes?: string[];
-};
-
-export type HubspotRecordsResponse = {
-  objectType: HubspotObjectType;
-  total: number;
-  records: HubspotRecord[];
-};
+export type ZohoObjectType = HubspotObjectType;
+export type ZohoRecord = HubspotRecord;
+export type ZohoStatusResponse = Omit<HubspotStatusResponse, "provider"> & { provider: "zoho" };
+export type ZohoRecordsResponse = HubspotRecordsResponse;
 
 function getUserContext() {
   return {
@@ -71,20 +52,20 @@ async function getEdgeErrorMessage(error: unknown, fallback: string): Promise<st
   return fallback;
 }
 
-export function getHubspotRedirectUri(): string {
-  const localRedirect = import.meta.env.VITE_HUBSPOT_REDIRECT_URI?.trim();
-  const productionRedirect = import.meta.env.VITE_HUBSPOT_PRODUCTION_REDIRECT_URI?.trim();
+export function getZohoRedirectUri(): string {
+  const localRedirect = import.meta.env.VITE_ZOHO_REDIRECT_URI?.trim();
+  const productionRedirect = import.meta.env.VITE_ZOHO_PRODUCTION_REDIRECT_URI?.trim();
   const isLocal = /localhost|127\.0\.0\.1/i.test(window.location.hostname);
 
   if (isLocal && localRedirect) return localRedirect;
   if (!isLocal && productionRedirect) return productionRedirect;
   if (localRedirect) return localRedirect;
 
-  return `${window.location.origin}/hubspot/callback`;
+  return `${window.location.origin}/zoho/callback`;
 }
 
-async function invokeHubspot(action: HubspotAction, body: Record<string, unknown>) {
-  const { data, error } = await supabase.functions.invoke("hubspot-connect", {
+async function invokeZoho(action: ZohoAction, body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke("zoho-connect", {
     body: {
       action,
       ...body,
@@ -92,21 +73,21 @@ async function invokeHubspot(action: HubspotAction, body: Record<string, unknown
   });
 
   if (error) {
-    throw new Error(await getEdgeErrorMessage(error, "HubSpot request failed"));
+    throw new Error(await getEdgeErrorMessage(error, "Zoho request failed"));
   }
 
   return data;
 }
 
-export async function getHubspotAuthUrl(): Promise<string> {
+export async function getZohoAuthUrl(): Promise<string> {
   const { organizationId, userId, role } = getUserContext();
   if (!organizationId || !userId) {
     throw new Error("Missing organization/user context. Please login again.");
   }
 
-  const redirectUri = getHubspotRedirectUri();
+  const redirectUri = getZohoRedirectUri();
 
-  const data = await invokeHubspot("get_auth_url", {
+  const data = await invokeZoho("get_auth_url", {
     organizationId,
     userId,
     role,
@@ -114,21 +95,21 @@ export async function getHubspotAuthUrl(): Promise<string> {
   });
 
   if (!data?.authUrl) {
-    throw new Error("Failed to generate HubSpot authorization URL.");
+    throw new Error("Failed to generate Zoho authorization URL.");
   }
 
   return String(data.authUrl);
 }
 
-export async function exchangeHubspotCode(code: string, state?: string): Promise<HubspotStatusResponse> {
+export async function exchangeZohoCode(code: string, state?: string): Promise<ZohoStatusResponse> {
   const { organizationId, userId, role } = getUserContext();
   if (!organizationId || !userId) {
     throw new Error("Missing organization/user context. Please login again.");
   }
 
-  const redirectUri = getHubspotRedirectUri();
+  const redirectUri = getZohoRedirectUri();
 
-  const data = await invokeHubspot("exchange_code", {
+  const data = await invokeZoho("exchange_code", {
     code,
     state,
     organizationId,
@@ -138,92 +119,92 @@ export async function exchangeHubspotCode(code: string, state?: string): Promise
   });
 
   if (!data?.success) {
-    throw new Error(data?.error || "Failed to connect HubSpot");
+    throw new Error(data?.error || "Failed to connect Zoho");
   }
 
   return {
     connected: true,
-    provider: "hubspot",
+    provider: "zoho",
     connectedAt: data.connectedAt || null,
     lastSyncedAt: data.lastSyncedAt || null,
-    portalId: data.portalId || null,
     scopes: Array.isArray(data.scopes) ? data.scopes : [],
   };
 }
 
-export async function getHubspotStatus(): Promise<HubspotStatusResponse> {
+export async function getZohoStatus(): Promise<ZohoStatusResponse> {
   const { organizationId, userId } = getUserContext();
   if (!organizationId || !userId) {
-    return { connected: false, provider: "hubspot" };
+    return { connected: false, provider: "zoho" };
   }
 
-  const data = await invokeHubspot("status", {
+  const data = await invokeZoho("status", {
     organizationId,
     userId,
   });
 
   return {
     connected: Boolean(data?.connected),
-    provider: "hubspot",
+    provider: "zoho",
     connectedAt: data?.connectedAt || null,
     lastSyncedAt: data?.lastSyncedAt || null,
-    portalId: data?.portalId || null,
     scopes: Array.isArray(data?.scopes) ? data.scopes : [],
   };
 }
 
-export async function disconnectHubspot(): Promise<void> {
+export async function disconnectZoho(): Promise<void> {
   const { organizationId, userId } = getUserContext();
   if (!organizationId || !userId) {
     throw new Error("Missing organization/user context. Please login again.");
   }
 
-  const data = await invokeHubspot("disconnect", {
+  const data = await invokeZoho("disconnect", {
     organizationId,
     userId,
   });
 
   if (!data?.success) {
-    throw new Error(data?.error || "Failed to disconnect HubSpot");
+    throw new Error(data?.error || "Failed to disconnect Zoho");
   }
 }
 
-export async function syncHubspotNow(): Promise<HubspotStatusResponse> {
+export async function syncZohoNow(): Promise<ZohoStatusResponse> {
   const { organizationId, userId } = getUserContext();
   if (!organizationId || !userId) {
     throw new Error("Missing organization/user context. Please login again.");
   }
 
-  const data = await invokeHubspot("sync_now", {
+  const data = await invokeZoho("sync_now", {
     organizationId,
     userId,
   });
 
   if (!data?.success) {
-    throw new Error(data?.error || "HubSpot sync failed");
+    throw new Error(data?.error || "Zoho sync failed");
   }
 
   return {
     connected: true,
-    provider: "hubspot",
+    provider: "zoho",
     connectedAt: data.connectedAt || null,
     lastSyncedAt: data.lastSyncedAt || null,
-    portalId: data.portalId || null,
     scopes: Array.isArray(data.scopes) ? data.scopes : [],
   };
 }
 
-export async function listHubspotRecords(
-  objectType: HubspotObjectType,
+export async function listZohoRecords(
+  objectType: ZohoObjectType,
   limit = 25,
   after?: string
-): Promise<HubspotRecordsResponse> {
+): Promise<ZohoRecordsResponse> {
   const { organizationId, userId } = getUserContext();
+  // Debug log for context
+  console.log("[Zoho] listZohoRecords context", { organizationId, userId, objectType, limit, after });
   if (!organizationId || !userId) {
+    alert("Missing organization/user context. Please login again.");
     throw new Error("Missing organization/user context. Please login again.");
   }
 
-  const data = await invokeHubspot("list_records", {
+  const data = await invokeZoho("list_records", {
     organizationId,
     userId,
     objectType,
@@ -232,12 +213,13 @@ export async function listHubspotRecords(
   });
 
   if (!data?.success) {
-    throw new Error(data?.error || `Failed to load HubSpot ${objectType}`);
+    console.error("[Zoho] listZohoRecords error", data?.error, { organizationId, userId, objectType, limit, after });
+    throw new Error(data?.error || `Failed to load Zoho ${objectType}`);
   }
 
   return {
     objectType,
     total: Number(data?.total || 0),
-    records: Array.isArray(data?.records) ? (data.records as HubspotRecord[]) : [],
+    records: Array.isArray(data?.records) ? (data.records as ZohoRecord[]) : [],
   };
 }

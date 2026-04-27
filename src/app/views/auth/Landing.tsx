@@ -43,22 +43,8 @@ export function Landing() {
     setLoading(true);
 
     try {
-      // Query to find the user's organization from email (using users table)
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("org_id, user_id, role, full_name")
-        .eq("email", email)
-        .single();
-
-      if (userError || !userData) {
-        setError("User not found");
-        setLoading(false);
-        return;
-      }
-
       // Use custom login function - no role parameter, will fetch from DB
       const result = await customLogin({
-        orgId: userData.org_id,
         email,
         password,
       });
@@ -77,7 +63,7 @@ export function Landing() {
       const { data: orgData } = await supabase
         .from("orgs")
         .select("name")
-        .eq("org_id", userData.org_id)
+        .eq("org_id", result.orgId)
         .single();
 
       const appRole = getAppRole(result.role);
@@ -87,7 +73,7 @@ export function Landing() {
       localStorage.setItem("userEmail", result.email);
       localStorage.setItem("userName", result.fullName || result.email.split("@")[0]);
       localStorage.setItem("userId", result.userId);
-      localStorage.setItem("userOrganization", userData.org_id);
+      localStorage.setItem("userOrganization", result.orgId);
       localStorage.setItem("organizationName", orgData?.name || "Organization");
 
       // Redirect to role-based dashboard

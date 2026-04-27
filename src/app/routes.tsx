@@ -38,6 +38,7 @@ import { CRM } from "./views/shared/CRM";
 import { EmailCallback } from "./views/shared/EmailCallback";
 import { CalendarCallback } from "./views/shared/CalendarCallback";
 import { HubspotCallback } from "./views/shared/HubspotCallback";
+import { ZohoCallback } from "./views/shared/ZohoCallback";
 import { Landing } from "./views/auth/Landing";
 import { RoleLogin } from "./views/auth/RoleLogin";
 import { RoleSignup } from "./views/auth/RoleSignup";
@@ -90,6 +91,10 @@ export const router = createBrowserRouter([
   {
     path: "/hubspot/callback",
     element: <HubspotCallback />,
+  },
+  {
+    path: "/zoho/callback",
+    element: <ZohoCallback />,
   },
   {
     path: "/rep",

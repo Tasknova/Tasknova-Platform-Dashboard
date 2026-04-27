@@ -156,7 +156,7 @@ export async function customLogin(params: LoginParams) {
       .from("users")
       .select("user_id, email, password_hash, role, is_active, full_name, org_id")
       .eq("email", email)
-      .single();
+      .maybeSingle();
 
     if (userError || !userData) {
       return {

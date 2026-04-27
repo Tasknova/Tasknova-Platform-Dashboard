@@ -12,6 +12,13 @@ import {
   listHubspotRecords,
   syncHubspotNow,
 } from "../../../lib/hubspotApi";
+import {
+  disconnectZoho,
+  getZohoAuthUrl,
+  getZohoStatus,
+  listZohoRecords,
+  syncZohoNow,
+} from "../../../lib/zohoApi";
 
 type CRMProviderId = "salesforce" | "zoho" | "hubspot";
 
@@ -147,6 +154,7 @@ export function CRM() {
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
   const [isLoadingRecords, setIsLoadingRecords] = useState(false);
   const [hubspotData, setHubspotData] = useState<HubspotDataState>(EMPTY_HUBSPOT_DATA);
+  const [zohoData, setZohoData] = useState<HubspotDataState>(EMPTY_HUBSPOT_DATA);
 
   const loadHubspotRecords = useCallback(async () => {
     setIsLoadingRecords(true);
@@ -172,6 +180,30 @@ export function CRM() {
     }
   }, []);
 
+  const loadZohoRecords = useCallback(async () => {
+    setIsLoadingRecords(true);
+    setRecordsError("");
+
+    try {
+      const [contacts, companies, deals] = await Promise.all([
+        listZohoRecords("contacts", 15),
+        listZohoRecords("companies", 15),
+        listZohoRecords("deals", 15),
+      ]);
+
+      setZohoData({
+        contacts: contacts.records,
+        companies: companies.records,
+        deals: deals.records,
+      });
+    } catch (error) {
+      setRecordsError(error instanceof Error ? error.message : "Failed to load synced Zoho records.");
+      setZohoData(EMPTY_HUBSPOT_DATA);
+    } finally {
+      setIsLoadingRecords(false);
+    }
+  }, []);
+
   useEffect(() => {
     const loadConnection = async () => {
       setIsLoadingStatus(true);
@@ -181,41 +213,65 @@ export function CRM() {
       setConnection(localState);
 
       try {
-        const status = await getHubspotStatus();
-        if (status.connected) {
+        const statuses = await Promise.allSettled([
+          getHubspotStatus(),
+          getZohoStatus()
+        ]);
+        
+        const hsStatus = statuses[0].status === 'fulfilled' ? statuses[0].value : null;
+        const zohoStatus = statuses[1].status === 'fulfilled' ? statuses[1].value : null;
+        
+        let foundConnection = false;
+
+        if (hsStatus?.connected) {
+          foundConnection = true;
           const nextState: CRMConnectionState = {
             provider: "hubspot",
-            connectedAt: status.connectedAt || null,
-            lastSyncedAt: status.lastSyncedAt || null,
-            portalId: status.portalId || null,
+            connectedAt: hsStatus.connectedAt || null,
+            lastSyncedAt: hsStatus.lastSyncedAt || null,
+            portalId: hsStatus.portalId || null,
           };
           setConnection(nextState);
           persistConnectionState(orgId, nextState);
           await loadHubspotRecords();
-          return;
+        } else if (zohoStatus?.connected) {
+          foundConnection = true;
+          const nextState: CRMConnectionState = {
+            provider: "zoho",
+            connectedAt: zohoStatus.connectedAt || null,
+            lastSyncedAt: zohoStatus.lastSyncedAt || null,
+            portalId: zohoStatus.portalId || null,
+          };
+          setConnection(nextState);
+          persistConnectionState(orgId, nextState);
+          await loadZohoRecords();
         }
 
-        if (localState.provider === "hubspot") {
-          const disconnectedState: CRMConnectionState = {
-            provider: null,
-            connectedAt: null,
-            lastSyncedAt: null,
-            portalId: null,
-          };
-          setConnection(disconnectedState);
-          persistConnectionState(orgId, disconnectedState);
-          setHubspotData(EMPTY_HUBSPOT_DATA);
+        if (!foundConnection) {
+          if (localState.provider === "hubspot" || localState.provider === "zoho") {
+            const disconnectedState: CRMConnectionState = {
+              provider: null,
+              connectedAt: null,
+              lastSyncedAt: null,
+              portalId: null,
+            };
+            setConnection(disconnectedState);
+            persistConnectionState(orgId, disconnectedState);
+            setHubspotData(EMPTY_HUBSPOT_DATA);
+            setZohoData(EMPTY_HUBSPOT_DATA);
+          }
         }
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : "Failed to load CRM connection status.");
         setHubspotData(EMPTY_HUBSPOT_DATA);
+        setZohoData(EMPTY_HUBSPOT_DATA);
       } finally {
         setIsLoadingStatus(false);
       }
     };
 
     void loadConnection();
-  }, [orgId, loadHubspotRecords]);
+  }, [orgId, loadHubspotRecords, loadZohoRecords]);
 
   const connectedProvider = useMemo(
     () => PROVIDERS.find((provider) => provider.id === connection.provider) || null,
@@ -228,8 +284,8 @@ export function CRM() {
     try {
       setErrorMessage("");
 
-      if (providerId !== "hubspot") {
-        setErrorMessage("Live OAuth is currently enabled only for HubSpot. Salesforce and Zoho are coming next.");
+      if (providerId !== "hubspot" && providerId !== "zoho") {
+        setErrorMessage("Live OAuth is currently enabled only for HubSpot and Zoho. Salesforce is coming next.");
         return;
       }
 
@@ -244,10 +300,10 @@ export function CRM() {
 
       setActiveProviderId(providerId);
 
-      const authUrl = await getHubspotAuthUrl();
+      const authUrl = providerId === "hubspot" ? await getHubspotAuthUrl() : await getZohoAuthUrl();
       window.location.href = authUrl;
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Failed to start HubSpot connection.");
+      setErrorMessage(error instanceof Error ? error.message : "Failed to start CRM connection.");
     } finally {
       setActiveProviderId(null);
     }
@@ -260,6 +316,8 @@ export function CRM() {
 
       if (connection.provider === "hubspot") {
         await disconnectHubspot();
+      } else if (connection.provider === "zoho") {
+        await disconnectZoho();
       }
 
       const nextState: CRMConnectionState = {
@@ -272,6 +330,7 @@ export function CRM() {
       setConnection(nextState);
       persistConnectionState(orgId, nextState);
       setHubspotData(EMPTY_HUBSPOT_DATA);
+      setZohoData(EMPTY_HUBSPOT_DATA);
       setRecordsError("");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Failed to disconnect CRM provider.");
@@ -290,14 +349,14 @@ export function CRM() {
       setErrorMessage("");
       setActiveProviderId(connection.provider);
 
-      if (connection.provider !== "hubspot") {
-        setErrorMessage("Live sync is currently enabled only for HubSpot.");
+      if (connection.provider !== "hubspot" && connection.provider !== "zoho") {
+        setErrorMessage("Live sync is currently enabled only for HubSpot and Zoho.");
         return;
       }
 
-      const syncState = await syncHubspotNow();
+      const syncState = connection.provider === "hubspot" ? await syncHubspotNow() : await syncZohoNow();
       const nextState: CRMConnectionState = {
-        provider: "hubspot",
+        provider: connection.provider,
         connectedAt: syncState.connectedAt || connection.connectedAt || null,
         lastSyncedAt: syncState.lastSyncedAt || new Date().toISOString(),
         portalId: syncState.portalId || connection.portalId || null,
@@ -305,7 +364,11 @@ export function CRM() {
 
       setConnection(nextState);
       persistConnectionState(orgId, nextState);
-      await loadHubspotRecords();
+      if (connection.provider === "hubspot") {
+        await loadHubspotRecords();
+      } else {
+        await loadZohoRecords();
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Failed to sync CRM provider.");
     } finally {
@@ -484,6 +547,105 @@ export function CRM() {
         </Card>
       )}
 
+      {isConnected && connection.provider === "zoho" && (
+        <Card className="mb-6 p-5 border border-indigo-200 bg-indigo-50/40">
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+            <div className="flex items-center gap-2">
+              <Database className="w-5 h-5 text-indigo-700" />
+              <h3 className="text-sm font-semibold text-indigo-900">Synced Zoho Data</h3>
+            </div>
+
+            <Button
+              variant="outline"
+              className="bg-white border-indigo-300 text-indigo-700 hover:bg-indigo-100"
+              onClick={() => {
+                void loadZohoRecords();
+              }}
+              disabled={isLoadingRecords || activeProviderId !== null}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isLoadingRecords ? "animate-spin" : ""}`} />
+              {isLoadingRecords ? "Loading Data..." : "Refresh Data"}
+            </Button>
+          </div>
+
+          <p className="text-xs text-indigo-800 mb-4">
+            Latest records pulled from your connected Zoho CRM account.
+          </p>
+
+          {recordsError && (
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              {recordsError}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Card className="p-4 border border-gray-200 bg-white">
+              <p className="text-xs font-semibold text-gray-700 mb-3">
+                Contacts ({zohoData.contacts.length})
+              </p>
+              <div className="space-y-3">
+                {zohoData.contacts.length === 0 ? (
+                  <p className="text-xs text-gray-500">No contacts found.</p>
+                ) : (
+                  zohoData.contacts.slice(0, 5).map((record, index) => (
+                    <div
+                      key={`${record.id || "contact"}-${index}`}
+                      className="border-b border-gray-100 pb-2 last:border-0 last:pb-0"
+                    >
+                      <p className="text-xs font-medium text-gray-900">{getContactTitle(record)}</p>
+                      <p className="text-xs text-gray-600">{toText(record.properties.email)}</p>
+                      <p className="text-xs text-gray-600">{toText(record.properties.phone)}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+
+            <Card className="p-4 border border-gray-200 bg-white">
+              <p className="text-xs font-semibold text-gray-700 mb-3">
+                Companies ({zohoData.companies.length})
+              </p>
+              <div className="space-y-3">
+                {zohoData.companies.length === 0 ? (
+                  <p className="text-xs text-gray-500">No companies found.</p>
+                ) : (
+                  zohoData.companies.slice(0, 5).map((record, index) => (
+                    <div
+                      key={`${record.id || "company"}-${index}`}
+                      className="border-b border-gray-100 pb-2 last:border-0 last:pb-0"
+                    >
+                      <p className="text-xs font-medium text-gray-900">{getCompanyTitle(record)}</p>
+                      <p className="text-xs text-gray-600">Domain: {toText(record.properties.domain) || "N/A"}</p>
+                      <p className="text-xs text-gray-600">Industry: {toText(record.properties.industry) || "N/A"}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+
+            <Card className="p-4 border border-gray-200 bg-white">
+              <p className="text-xs font-semibold text-gray-700 mb-3">Deals ({zohoData.deals.length})</p>
+              <div className="space-y-3">
+                {zohoData.deals.length === 0 ? (
+                  <p className="text-xs text-gray-500">No deals found.</p>
+                ) : (
+                  zohoData.deals.slice(0, 5).map((record, index) => (
+                    <div
+                      key={`${record.id || "deal"}-${index}`}
+                      className="border-b border-gray-100 pb-2 last:border-0 last:pb-0"
+                    >
+                      <p className="text-xs font-medium text-gray-900">{getDealTitle(record)}</p>
+                      <p className="text-xs text-gray-600">Amount: {toText(record.properties.amount)}</p>
+                      <p className="text-xs text-gray-600">Stage: {toText(record.properties.dealstage)}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+          </div>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {PROVIDERS.map((provider) => {
           const selected = connection.provider === provider.id;
@@ -510,13 +672,13 @@ export function CRM() {
 
               <Button
                 onClick={() => handleConnect(provider.id)}
-                disabled={activeProviderId !== null || (provider.id !== "hubspot" && isConnected && connection.provider === "hubspot")}
+                disabled={activeProviderId !== null || provider.id === "salesforce"}
                 className="w-full bg-blue-600 hover:bg-blue-700"
               >
                 <Link2 className="w-4 h-4 mr-2" />
                 {loadingThisProvider
                   ? "Connecting..."
-                  : provider.id !== "hubspot"
+                  : provider.id === "salesforce"
                   ? "Coming Soon"
                   : selected
                   ? "Reconnect"
@@ -535,8 +697,8 @@ export function CRM() {
           <div>
             <h3 className="text-sm font-semibold text-amber-900">Integration Note</h3>
             <p className="text-sm text-amber-800 mt-1">
-              HubSpot records shown above are loaded through your connected OAuth integration. Salesforce and Zoho data
-              views will appear once those providers are wired with live APIs.
+              HubSpot and Zoho records shown above are loaded through your connected OAuth integrations. Salesforce data
+              views will appear once that provider is wired with live APIs.
             </p>
           </div>
         </div>
